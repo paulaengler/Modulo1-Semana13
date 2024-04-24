@@ -1,0 +1,428 @@
+const { Router } = require('express');
+const Aluno = require('../models/Aluno');
+const Curso = require('../models/Curso');
+const nodemon = require('nodemon');
+const Professor = require('../models/Professores');
+const { sign } = require("jsonwebtoken");
+const { auth } = require("../middleware/auth");
+
+
+
+
+// Ao inserir Aluno na rota Post , gerou esse require a cima, automaticamente
+
+/* função router da biblioteca express - permite criar as rotas
+Router é uma classe - quando quer usar uma classe pronta, precisa estanciar ela
+new router - atribui a uma variável - a variavel tem acesso a todos os recursos
+que a classe disponibiliza*/
+
+const routes = new Router();
+
+/* verbos http
+GET - LISTAR
+POST - CRIAR - ADICIONAR ALGO
+PUT - ATUALIZAR ALGO
+DELETE - DELETAR 
+PATCH -  - ATUALIZAR APENAS UM CAMPO - PODERIA USAR O PUT*/
+
+//2 tipos de funcao = funcao nomeada - function olamundo () e// funcao arrow function (resumida)
+
+// criar uma rota - tipo (get) - path (endereço da url) - implementação
+routes.get('/bem_vindo', (req, res) => {
+    res.json({name: 'Bem vindo'})
+})
+
+// res.json - responde no formato json
+// vai responder pro usuário, usando um send, o bem vindo res.send('Bem vindo')
+
+// request - req - receber dados que a pessoa enviou - capturar os dados
+//response - res - a resposta, mesmo que seja um erro 
+
+//rota para criar novo aluno
+
+//resposta res.send ou res.json - e nao console log pq seria só no terminal e precisa de resposta na url
+
+
+//Rota de criação de aluno e Registro (login)
+
+routes.post('/alunos', async (req,res) => {
+    
+    try {    
+        const email = req.body.email;
+        const password = req.body.password;
+        const nome = req.body.nome;
+        const data_nascimento = req.body.data_nascimento;
+        const celular = req.body.celular;
+
+        if(!nome) {
+            return res.status(400).json({message: 'O nome é obrigatório'})
+        }
+
+        if(!data_nascimento) {
+            return res.status(400).json({message: 'A data de nascimento é obrigatória'})
+        }
+
+        const aluno = await Aluno.create({
+            email: email,
+            password: password,
+            nome: nome,
+            data_nascimento: data_nascimento,
+            celular: celular,
+        })
+        res.status(201).json(aluno)
+
+    } catch (error) {
+        console.log(error.message); //para ver a mensagem técnica do erro que aconteceu
+        res.status(500).json({ error: 'Não foi possível cadastrar o aluno' })
+    }
+})
+
+//try catch - erro genérico - deu algum erro, para nao quebrar o banco de dados no caso
+// de algum valor não foi inserido -- tenta fazer o cofigo e se acontecer algum erro, vai
+// pro catch, não quebra a aplicação e redireciona pro erro
+
+// if(!nome) --- se nao tiver o nome, encerrar ali, resposta 400 - 
+// return - para travar o codigo, senão ele continua rodando atras , mesmo retornando a resposta
+// se nao achar o nome, nao vai pra data de nascimento
+
+//para ver tabela no postgress -- view data, all rows 
+// no postman - aparece {}, objeto vazio- para isso coloca o await - para esperar ele inserir no BD, 
+// e depois retornar os valores do objeto e não mais vazio , precisa colocar o async no inicio da função
+// await e async - sempre juntos
+
+//pode preencher no body - raw - em formato json - no postaman - para isso criou a variavel nome
+// const nome = req.body.nome
+// antes - já estava passando um valor no arquivo js, criava sempre o mesmo aluno
+// por isso, pega os dados da req, para pegar os dados que foram preenchidos
+
+//regex - para formato de data 
+
+/* ---- Rota de login no sistema ----- rota post informa no body */
+
+routes.post('/login', async (req,res) => {         
+        try {
+            const email = req.body.email;
+            const password = req.body.password;
+
+            if(!email && !password) {
+                return res.status(400).json({message: "Email ou senha não informados"})
+        }     
+
+        // Procura na tabela aluno um aluno que corresponda ao email e senha fornecido
+            const aluno = await Aluno.findOne({
+                where: {email:email, password:password}
+            })
+
+        if(!aluno){
+            return res.status(404).json({message: "Não existe aluno com email e senha informados"})
+        }
+
+        const payload = {sub:aluno.id, email: aluno.email, nome:aluno.nome}
+
+        const token = sign(payload, process.env.SECRET_JWT)
+
+        res.status(200).json({Token: token})
+
+        } catch (error) {
+                return res.status(500).json({error: error, message: "Algo inesperado aconteceu"})
+
+        }
+     })
+
+
+
+
+routes.get('/alunos', auth ,async (req, res) => {
+    const alunos = await Aluno.findAll()
+    res.json(alunos)
+})
+
+// SELECT * from alunos - comando sql 
+// deve esperar a resposta do banco de dados, por isso coloca o await, senao no postman retorna como objeto vazio
+// devolve um array com todos os alunos
+
+routes.post('/cursos', async (req,res) => {
+    try {
+    const nome = req.body.nome;
+    const duracao_horas = req.body.duracao_horas;
+    
+    if(!nome) {
+        return res.status(400).json({message: 'O nome é obrigatório'})
+    }
+
+    if(!(duracao_horas >= 40 && duracao_horas <= 200)) {
+        return res.status(400).json({message: 'A duração de horas deverá ser entre 40 e 200 horas'})
+    }
+    
+    const curso = await Curso.create({
+        nome: nome,
+        duracao_horas: duracao_horas
+    })
+
+        res.status(201).json(curso)
+
+    } catch (error) {
+        console.log(error.message)
+        res.status(500).json({ error: 'Não foi possível cadastrar o curso' })
+    }
+})
+
+//if duração de horas - coloca a condição que é pra passar, e depois nega, vai trazer o erro
+
+/* poderia passar assim tbm, quando tem os mesmos nomes
+const curso = await Curso.create({
+    nome,
+    duracao_horas
+}) */
+
+/* routes.get('/cursos', async (req, res) => {
+    const nome = req.query.nome;
+    const cursos = await Curso.findAll({
+        where: {
+            nome:nome,
+        }
+    })
+    res.json(cursos) 
+})  
+-- Para pesquisar apenas uma variável Nome*/
+
+// listar todos os cursos - usa apenas o findall
+// const nome query - params - query params no postman 
+// passa chave e valor - chave nome - valor ex html - filtra os valores
+
+
+
+   // SE for passado uma paramero QUERY chamado "nome" na requisição, então
+        // esse parametro "nome" é adicionado dentro da variavel params
+     // o ...params, cria uma cópia do params com os chaves e valores já existentes - CursosGET
+
+routes.get('/cursos', async (req, res) => {
+    const nome = req.query.nome;
+    const duracao_horas = req.query.duracao_horas;
+
+    const todos = {};
+    if (nome) {
+        todos.nome = nome
+    }
+    if (duracao_horas) {
+        todos.duracao_horas = duracao_horas
+    }
+
+    try {
+        const cursos = await Curso.findAll({
+            where: todos
+        });
+    
+    res.json(cursos);
+
+    } catch (error) {
+        console.error('Erro ao buscar cursos:', error);
+        res.status(500).json({ error: 'Erro ao buscar cursos' });
+    }
+});
+
+
+
+
+routes.put('/cursos/:id', async (req, res) => {
+    const id = req.params.id;
+    const { nome, duracao_horas} = req.body;
+
+    try {
+    
+        const atualizada = await Curso.findByPk(id)
+        if(!atualizada) {
+            return res.status(404).json({ error: 'Curso não encontrado'})
+        }
+    
+    if (!nome || !duracao_horas) {
+        return res.status(400).json({ error: 'Nome e duração do curso são campos obrigatórios'})
+    }
+
+    await Curso.update({ nome, duracao_horas},
+    {where: { id} });
+
+    const cursoAtualizado = await Curso.findByPk(id);
+    res.status(200).json(cursoAtualizado);
+
+    } catch(error) {
+        console.error('Erro ao atualizar o curso', error);
+        res.status(500).json({ error: 'Erro ao atualizar o curso'})
+    }
+});
+
+ 
+
+
+/* routes.delete('/cursos/:id', (req, res) => {
+    const id = req.params.id
+    Curso.destroy({
+        where: {
+            id: id
+        }
+    })
+    res.status(204).json({})
+}) 
+
+Exemplo em aula do professor 
+*/
+
+// não precisa retornar mensagem, apenas status 204
+
+
+
+routes.delete('/cursos/:id', async (req, res) => {
+    const { id }  = req.params;
+
+    const novo = await Curso.findByPk(id);
+
+    if(!novo) {
+        return res.status(404).json({ error: 'Curso não encontrado'})
+    }
+
+    await novo.destroy();
+
+    return res.status(204).json({});
+});
+
+
+
+// NOVO CRUD ---- ROTAS PROFESSORES
+
+/* CRIAR ARQUIVO DE NOVA TABELA
+### Criar uma migration
+1. sequelize migration:generate --name criar_tabela_alunos
+2. npx sequelize-cli migration:generate --name criar_tabela_alunos
+### Rodar uma migration. Opções:
+1. Opção nº 1: sequelize db:migrate
+2. Opção nº 2: npx sequelize db:migrate
+
+Para criar uma nova coluna na tabela, criar uma nova migration
+
+NA PASTA MODELS
+CRIAR ARQUIVO Professores.js
+*/
+
+
+routes.post('/professores', async (req,res) => {
+    
+    try {    
+        const nome = req.body.nome;
+        const materia = req.body.materia;
+
+        if(!nome) {
+            return res.status(400).json({message: 'O nome é obrigatório'})
+        }
+
+        if(!materia) {
+            return res.status(400).json({message: 'Informar a matéria que o professor leciona é obrigatório'})
+        }
+
+        const professor = await Professor.create({
+            nome: nome,
+            materia: materia
+        })
+        res.status(201).json(professor)
+
+    } catch (error) {
+        console.log(error.message); 
+        res.status(500).json({ error: 'Não foi possível cadastrar o professor' })
+    }
+})
+
+
+routes.get('/professores', async (req, res) => {
+    const professores = await Professor.findAll()
+    res.json(professores)
+})
+
+
+
+routes.put('/professores/:id', async (req, res) => {
+    const id = req.params.id;
+    const { nome, materia} = req.body;
+
+    try {
+    
+        const atualizada = await Professor.findByPk(id)
+        if(!atualizada) {
+            return res.status(404).json({ error: 'Professor não encontrado'})
+        }
+    
+    if (!nome || !materia) {
+        return res.status(400).json({ error: 'Nome e materia são campos obrigatórios'})
+    }
+
+    await Professor.update({ nome, materia},
+    {where: { id} });
+
+    const professorAtualizado = await Professor.findByPk(id);
+    res.status(200).json(professorAtualizado);
+
+    } catch(error) {
+        console.error('Erro ao atualizar o professor', error);
+        res.status(500).json({ error: 'Erro ao atualizar o professor'})
+    }
+});
+
+routes.delete('/professores/:id', async (req, res) => {
+    const { id }  = req.params;
+
+    const novo = await Professor.findByPk(id);
+
+    if(!novo) {
+        return res.status(404).json({ error: 'Professor não encontrado'})
+    }
+
+    await novo.destroy();
+
+    return res.status(204).json({});
+});
+
+
+
+module.exports = routes;
+
+// exportar a variável routes, sempre no final do código
+
+
+//Body params - post e put - cadastro e atualização
+//Route params /1 - delete e put
+//Query params ?id=1 - get 
+// Formas de mandar na rota 
+
+// status code - 200 get e put -  201 post - 204 delete - ok - cada valor é específico 
+// status code - 400 - 
+// status code - 500 - 
+
+
+
+
+/* Exercícios semana 11 
+[M1S11] Ex. 1 - Rota de cadastro de curso
+Desenvolva uma rota POST com o endpoint ‘/cursos’ capaz de receber, no corpo da requisição, 
+o nome do curso e sua duração em horas. Em seguida, essa rota deve retornar o objeto do curso recém-criado no banco de dados.
+Retorne um status code 201 na resposta da requisição. Além disso, valide as informações recebidas no body da requisição. 
+Caso haja algum dado inválido, retorne um status code 400 contendo o motivo do erro.
+
+[M1S11] Ex. 2 - Rota de listagem de cursos
+Desenvolva uma rota GET com o endpoint ‘/cursos’, capaz de listar, em formato JSON, todos os cursos cadastrados no banco de dados.
+
+[M1S11] Ex. 3 - Pesquisa de cursos
+Implemente, na rota de listagem de cursos, uma pesquisa pelo nome de um curso e duração. Use o recurso de Query params.
+
+[M1S11] Ex. 4 - Rota de atualização de cursos
+Desenvolva uma rota PUT com o endpoint ‘/cursos/:id’, capaz de receber no corpo da requisição dados de um curso existente para ser atualizado . 
+Em seguida, essa rota deve retornar o objeto do curso recém-atualizado no banco de dados.
+Retorne um status code 200 na resposta da requisição. Além disso, valide as informações recebidas no body da requisição. C
+aso haja algum dado inválido, retorne um status code 400 contendo o motivo do erro.
+
+[M1S11] Ex. 5 - Rota de deleção de curso
+Desenvolva uma rota DELETE com o endpoint ‘/cursos/:id’, capaz de deletar um curso com base no id recebido.
+Retorne um status code 204 na resposta da requisição. Além disso, valide se o id informado realmente existe no banco de dados. 
+Caso não exista, retorne um error 404 na resposta da requisição, informando que o curso não foi encontrado.
+
+[M1S11] Ex. 6 - Novo CRUD
+"Seguindo o contexto de uma aplicação para escola, crie rotas GET, POST, DELETE e PUT para adicionar funcionalidades à aplicação.
+Por exemplo, você pode criar um CRUD de Professores. Não esqueça de adicionar a migration e o model do elemento que você escolheu."
+*/
