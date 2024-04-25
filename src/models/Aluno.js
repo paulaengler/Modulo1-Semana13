@@ -6,6 +6,9 @@
 const { DataTypes } = require("sequelize");
 const { connection } = require("../database/connection");
 const { password } = require("../config/database.config");
+const {hash} = require('bcryptjs')
+
+//chamar só a função hash da biblioteca, e nao ela toda
 
 // nome tabela 'alunos' - virgula - colunas que vai ter acesso, colunas que vamos ter acesso
 // algumas colunas podem ficar só pro desenvolvedor
@@ -33,6 +36,21 @@ const Aluno = connection.define('alunos', {
 }) 
 
 //variavel Aluno - manipular a tabela de alunos, usa a variável Aluno - ponte entre código e BD
+
+//hooks
+Aluno.beforeSave(async (user) => {
+    user.password = await hash(user.password, 8)
+    return user
+})
+
+//criptografia da senha - beforeSave (antes de salvar) manipular o usuario antes de salvar no BD
+//pegar a senha do usuario e substituir pela criptografia dela
+//biblioteca becrypt possibilita cripto senhas
+//no terminal: npm install bcryptjs 
+//precisa importar no inicio do código
+//8 - referente a forma que vai gerar a senha
+
+
 
 module.exports = Aluno
 

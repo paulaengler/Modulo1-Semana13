@@ -8,6 +8,7 @@ alunoRoutes.post('/', AlunoController.cadastrar)
 alunoRoutes.get('/', auth, AlunoController.listar)
 alunoRoutes.get('/:id', auth, AlunoController.listarUm)
 
+
 module.exports = alunoRoutes
 
 //middlere auth fica no meio - entre requisição e resposta 
