@@ -10,7 +10,7 @@ class LoginController {
         const password = req.body.password
 
         if (!email) {
-            return res.status(400).json({ message: 'O email é obrigatório' })
+            return res.status(400).json({ message: 'O email é obrigatório'})
         }
 
         if (!password) {
@@ -30,7 +30,7 @@ class LoginController {
         //comparar a senha informada com a senha criada pela criptografia
         //função compare do bcrypt - importado no inicio do código
 
-        const hashSenha = await compare(password, aluno.compare)
+        const hashSenha = await compare(password, aluno.password)
 
         if(hashSenha === false){
             return res.status(403).json({message:'Aluno não encontrado'}) //nao falar que email ou senha não existe, vai saber se um deles esta correto
@@ -47,6 +47,7 @@ class LoginController {
     }
 }
 }
+
 
 module.exports = new LoginController
 
